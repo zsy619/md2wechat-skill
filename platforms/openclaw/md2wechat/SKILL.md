@@ -1,6 +1,10 @@
 ---
 name: md2wechat
 description: Convert Markdown to WeChat Official Account HTML, inspect supported providers/themes/prompts, generate article images, create drafts, write with creator styles, prepare title suggestions, and remove AI writing traces. Also use for unpublished Zhihu, CSDN, Toutiao, or Tencent Cloud Developer Community drafts through a browser. Use for product introductions, encyclopedia articles or entry drafts, and writing tailored to platforms or search targets.
+display_name: "公众号 Markdown 转换"
+display_name_en: "Markdown to WeChat"
+description_zh: "把 Markdown 转成微信公众号 HTML，并处理文章预览、草稿上传、封面与信息图、图片消息、风格写作、标题建议、去 AI 痕迹，以及主题、提示词和排版模块的发现。也用于通过浏览器保存知乎、CSDN、头条、腾讯云开发者社区的未发布草稿，以及产品介绍、百科词条和面向平台或搜索的定向写作。通过 md2wechat CLI 执行；只在用户明确要求时创建草稿，不自动发表。"
+description_en: "Convert Markdown to WeChat Official Account HTML, inspect supported providers/themes/prompts, generate article images, create drafts, write with creator styles, prepare title suggestions, and remove AI writing traces. Also use for unpublished Zhihu, CSDN, Toutiao, or Tencent Cloud Developer Community drafts through a browser. Use for product introductions, encyclopedia articles or entry drafts, and writing tailored to platforms or search targets."
 homepage: https://github.com/geekjourneyx/md2wechat-skill
 metadata: {"openclaw":{"emoji":"📝","requires":{"bins":["md2wechat"]},"install":[{"id":"node","kind":"node","package":"@geekjourneyx/md2wechat","bins":["md2wechat"],"label":"Install md2wechat (npm)"}]}}
 ---
@@ -8,6 +12,19 @@ metadata: {"openclaw":{"emoji":"📝","requires":{"bins":["md2wechat"]},"install
 # md2wechat
 
 Use this skill to operate the `md2wechat` CLI. Keep the skill focused on execution decisions. For full command tutorials, installation details, and FAQ-level explanations, refer users to the project docs instead of expanding this runtime protocol.
+
+## Confirm The Plan First
+
+Before the first multi-step action (`inspect`, `preview`, `convert`, format, generate, `write`, `humanize`, `title suggest`, `advise`, sync, draft, or upload), tell the user in Simplified Chinese: the goal, the planned steps, the command family, the expected artifacts, and whether any side effect will occur (none / draft only / upload). Wait for an explicit go-ahead such as「开始」. Do not run those steps until confirmed.
+
+A user-specified single read-only command with explicit flags (for example `md2wechat preview article.md` or `themes list --json`) may run without a new plan pause.
+
+## Execution Constraints
+
+- Treat the `md2wechat` CLI as a black box: run the documented commands or `md2wechat <command> --help`; parse JSON stdout; do not read or modify CLI source under `cmd/` or `internal/` to decide flags.
+- Never write API keys or WeChat credentials into skill files, chat, memory, git, screenshots, or reports.
+- On this bot computer, put working artifacts under `/workspace/md2wechat/`. When the user asks to save or archive on their Mac, use `/Volumes/D/grokbot/` and never copy secrets there. The CLI Brand Profile path remains `~/.config/md2wechat/brand.md`. Throwaway formatted Markdown may still use `/tmp/md2wechat-format/<run-id>/`.
+- This skill does not auto-publish or schedule WeChat posts. Create drafts or upload media only when the user explicitly asks. Do not add a publish or schedule step.
 
 ## Intent Routing
 
@@ -32,68 +49,11 @@ Use CLI discovery as the source of truth, but keep it scoped to the next decisio
 
 Use `capabilities` for aggregate routing facts, resource `list` for lightweight selection fields, `show` for one full resource definition, and `render` for materialized prompt/layout output. JSON stdout is compact; use `jq` only when a human needs formatted output.
 
-Run the smallest useful discovery set:
-
-- Article formatting with no theme or modules chosen:
-  ```bash
-  md2wechat themes list --json
-  md2wechat layout list --json
-  ```
-
-- A named theme, provider, prompt, or layout module:
-  ```bash
-  md2wechat themes show <name> --json
-  md2wechat providers show <name> --json
-  md2wechat prompts show <name> --kind <kind> --json
-  md2wechat layout show <name> --json
-  ```
-
-- Image generation or image-preset selection:
-  ```bash
-  md2wechat providers list --json
-  md2wechat prompts list --kind image --json
-  ```
-
-- Subject-reference (image-to-image) capability before using `--subject-reference`:
-  ```bash
-  md2wechat providers show minimax --json
-  ```
-  Read `supports_subject_reference` on the provider and on each entry of `supported_models`. Only the `minimax` provider and its `image-01` model accept `--subject-reference`, and the reference must be a publicly reachable `http(s)` portrait image URL; inline data URLs and local paths are rejected. Unsupported provider/model combinations fail immediately with `CONFIG_INVALID`, so do not retry them as generation failures.
-
-- Title suggestion prompt selection:
-  ```bash
-  md2wechat prompts list --kind title --json
-  md2wechat prompts show wechat-title-expert --kind title --json
-  ```
-
-- Draft, upload, API local-readiness, or configuration troubleshooting:
-  ```bash
-  md2wechat doctor --json
-  md2wechat config show --format json
-  md2wechat config wechat-accounts --json
-  ```
-  `doctor` readiness is local configuration attemptability. `config wechat-accounts` is local-only and never prints WeChat secrets. Use `inspect --json` for article-specific target readiness.
-
-- Unknown CLI version, changed behavior, or capability uncertainty:
-  ```bash
-  md2wechat version --json
-  md2wechat capabilities --json
-  md2wechat skills list --json
-  md2wechat skills read md2wechat --json
-  ```
+When the next decision needs provider, theme, prompt, layout, image, title, draft-readiness, or version/capability facts, read `md2wechat skills read md2wechat references/discovery.md --json` and run only the matching discovery set. Do not guess from memory or repository files.
 
 `md2wechat skills read md2wechat --json` reads the core coding-agent SOP embedded in the current CLI binary. Use it when the local OpenClaw skill copy may be older than the executable on `PATH`; keep OpenClaw installation metadata from this platform skill as the platform-specific layer.
 
 For simple local actions such as `preview`, `humanize`, or a user-specified command with explicit flags, do not run unrelated provider, theme, prompt, or layout discovery.
-
-Inspect specific resources only when the task needs them:
-
-```bash
-md2wechat providers show <name> --json
-md2wechat themes show <name> --json
-md2wechat prompts show <name> --kind <kind> --json
-md2wechat layout show <name> --json
-```
 
 Use CLI output as the source of truth for currently available modes, providers, themes, prompts, and layout modules.
 
@@ -114,7 +74,7 @@ Use CLI output as the source of truth for currently available modes, providers, 
 
 ## Article Workflow
 
-Prefer a confirm-first workflow for article work:
+After plan confirmation, prefer this inspect-first workflow for article work:
 
 1. `md2wechat inspect <article.md> --json`
 2. `md2wechat preview <article.md>`
@@ -124,53 +84,15 @@ Prefer a confirm-first workflow for article work:
 `inspect` is the source-of-truth command for structured metadata, checks, readiness targets, and blockers. In `--json` output, read `data.readiness.targets` and `data.readiness.blockers` before deciding whether `convert`, `upload`, or `draft` is blocked. If the requested target is blocked, stop and report the matching blockers; do not continue by guessing from legacy booleans or `checks` alone. Do not invent `data.agent_readiness`, `data.target_readiness`, `ArticleState`, state files, or a second readiness/state object. `preview` writes only byte-identical final API HTML from a successful converter result; with `--json`, inspect diagnostics are returned in `data.inspect` and are never wrapped into that file. It does not upload images, create drafts, or write back to Markdown. `convert` performs conversion and only the explicitly requested upload/draft effects. `convert --preview` is the convert-path preview flag and is not the same as the standalone `preview` command. On `PREVIEW_ACTION_REQUIRED` or `PREVIEW_FAILED`, this invocation does not create or overwrite preview HTML. With `--json`, `PREVIEW_ACTION_REQUIRED` returns an empty `data.output_file`. Any pre-existing explicit output path is stale and must not be treated as this invocation's result; use the returned prompt for host-Agent work or report the failure.
 When the intended execution path is `convert --mode ai --custom-prompt ...`, run `inspect` with the same `--mode ai --custom-prompt ...` before trusting readiness.
 
-## Formatting Protocol
+## Formatting, Theme, Layout, and Brand
 
-When the user asks to format an article and has not chosen a theme or modules:
+When the user asks to format an article and has not chosen a theme or modules, or needs theme, layout-module, or Brand Profile rules, read `md2wechat skills read md2wechat references/formatting.md --json` and follow those sections.
 
-1. Read the article and optional Brand Profile.
-2. Use discovery output as facts.
-3. Choose a compatible theme and a small set of modules from the article's content goal.
-4. Keep the source Markdown read-only.
-5. Create a temporary formatted Markdown artifact, for example `/tmp/md2wechat-format/<run-id>/article.formatted.md`.
-6. Insert only layout modules whose required fields can be filled correctly.
-7. Run `md2wechat layout validate --file <formatted.md> --json`.
-8. Pass the formatted Markdown artifact to `convert`.
+Keep the source Markdown read-only. Saving generated Markdown next to the source file requires explicit user confirmation and must not overwrite the source.
 
-Saving generated Markdown next to the source file requires explicit user confirmation and must not overwrite the source.
+Advanced layout modules render only in API mode. API mode can use only `type: api` and `selectable: true` themes; AI mode can use only `type: ai` and `selectable: true` themes.
 
-## Theme Selection
-
-- Read `type` and `selectable` from `themes list --json`.
-- API mode can use only `type: api` and `selectable: true` themes.
-- AI mode can use only `type: ai` and `selectable: true` themes.
-- Do not use collection descriptors such as non-selectable theme groups as concrete themes.
-- If Brand Profile names a theme, verify it through CLI discovery before using it.
-- If a requested theme is invalid or mode-incompatible, stop that path and choose a valid theme or ask the user.
-
-## Layout Modules
-
-Advanced layout modules render only in API mode. AI mode (`--mode ai`) does not parse `:::module` syntax, so advanced layout cards will not render there.
-
-Use this decision frame:
-
-- `attention`: help readers decide whether the article is worth reading.
-- `readability`: make mobile reading easier.
-- `memorability`: make one judgment, quote, metric, or brand anchor stick.
-- `conversion`: help readers save, follow, inquire, share, or buy.
-
-Use CLI discovery as the source of truth for layout syntax instead of memorizing or guessing `body_format` values:
-
-- Inspect the opener, body schema, canonical executable example, and structurally distinct variants with `layout show <name> --json`. Reuse the canonical witness.
-- Use `layout render` for structured fields and `--body-file` (or `--body-file -` for stdin) for complex bodies, then validate the generated Markdown.
-- Default discovery returns recommended modules. Use `layout list --lifecycle compatibility --json` only for old-content migration. Local validation proves syntax acceptance only; production support is a release-conformance fact.
-- `gallery` is recommended. For `expand`, pass header fields, a standalone `---`, and Markdown body through `--body-file`. `cover-reveal` and `expand` default to complete static output; use `first-layer` only when the user explicitly requests an interaction candidate, and verify the target API before relying on it.
-
-Default module discipline:
-
-- Do not pile on modules.
-- Use at most one hero, one verdict, and one cta unless the user explicitly asks for more.
-- Skip modules when the article does not provide enough content to fill them honestly.
+Default discovery returns recommended modules. Use `layout list --lifecycle compatibility --json` only for old-content migration. Local validation proves syntax acceptance only; production support is a release-conformance fact.
 
 ## API And AI Mode
 
@@ -179,18 +101,6 @@ Default module discipline:
 - Do not silently switch from API mode to AI mode after an API failure. That changes the output capability.
 - Use AI mode only when the user asks for it or accepts losing advanced layout rendering.
 - If an AI-mode conversion completes, it is acceptable to briefly mention that API mode supports advanced layout modules and stronger visual structure.
-
-## Brand Profile
-
-Brand Profile lives at `~/.config/md2wechat/brand.md`.
-
-- It is free-form Markdown, not YAML and not a fixed schema.
-- The CLI does not parse it.
-- Read it as context for voice, theme preferences, module preferences, CTA preferences, and forbidden expressions.
-- Treat quantity preferences as soft constraints.
-- Verify any named theme or module through CLI discovery.
-- If Brand Profile does not exist, do not block the task. You may mention once that system defaults will be used.
-- Create or edit Brand Profile only when the user explicitly asks.
 
 ## Publishing Side Effects
 
